@@ -99,9 +99,10 @@ animation, across three disciplines: lighting/lookdev, character rigging and
 pipeline development. Strongest where art and code meet.
 
 Background:
-- Lighting and lookdev: shot and sequence lighting in Houdini Solaris (LOPs)
-  with Arnold; character lookdev; RenderMan, V-Ray, Substance, OCIO/ACES.
-  Lookdev roles count as Lighting.
+- Lighting: shot and sequence lighting in Houdini Solaris (LOPs) with
+  Arnold across several productions; RenderMan, V-Ray, OCIO/ACES.
+- Lookdev: one production of character lookdev (Substance, Arnold). Limited
+  experience and not a first choice. Lookdev roles count as Lighting.
 - Rigging: full-body, facial and cloth character rigs in Maya, mGear and
   modular rigging systems, with Python/OpenMaya rigging tools.
 - Pipeline: about 3 years as a pipeline developer. Built a studio-wide
@@ -112,23 +113,28 @@ Background:
 - DCCs: Maya, Houdini, Blender, Nuke, Unreal.
 
 Good fits (score high):
-- Lighting, lighting TD or lookdev artist roles, especially Solaris/USD
+- Lighting artist or lighting TD roles, especially Solaris/USD (lighting
+  roles that include some lookdev are fine)
 - Rigging, character TD or creature TD roles
 - Pipeline TD, pipeline developer or tools developer roles in VFX,
   animation or games production
 - 3D generalist roles at VFX, animation or games studios, especially ones
-  that lean on lighting, lookdev or rigging
+  that lean on lighting or rigging
 - Mid or senior level; junior roles only if otherwise a very strong match
 - Animation and VFX studios first; games studios are fine
 
 Not a fit (score low):
 - Technical artist roles: these are almost always real-time games tech art
   (shaders, engine tools, performance). Only score one well if it is
-  clearly rigging, lighting/lookdev or pipeline work
+  clearly rigging, lighting or pipeline work
 - FX / simulation / CFX / crowd roles, even when the title says TD
 - Pure software engineering or IT roles outside a production pipeline
 - Modelling, texturing-only, animation, compositing or 2D roles
 - HR, production management, recruiting and other non-artist roles
+
+Second choice (score about 2 lower than an equally matched lighting role):
+- Lookdev / look development artist roles, especially senior or lead ones
+  that expect a deep lookdev portfolio
 
 Location and right to work: British citizen with full right to work in the
 UK, currently based outside the UK. First score the role on fit alone, then
