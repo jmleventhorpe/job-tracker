@@ -1,119 +1,87 @@
 # job-tracker
 
-Pulls job postings from configured sources (currently the community
-VFX/animation job sheet) into the Notion Job Tracker.
+Pulls VFX/animation job postings from the community job sheet and studios'
+own job boards into the Notion **Job Tracker**, scores each new one 0-10
+against a plain-English profile with Claude, and keeps the tracker tidy.
 
-Each run reads existing Posting URL + Role pairs back from Notion and skips
-them, including Not Interested rows. A small local store (`data/seen.db`)
-also remembers every posting already handled, so a row you rename or delete
-in Notion is not added again.
+Each daily run:
 
-New postings are then scored 0-10 by Claude against a plain-English profile
-in `config.toml`. Good fits go into Notion with Fit Score, Discipline and Fit
-Reason; poor fits are recorded locally and never scored again.
+1. Trashes rows you marked **Not Interested** (recorded first, so they never
+   come back).
+2. Fetches every source in `config.toml` and applies the hard filters
+   (title keywords and exclusions, allowed locations, age).
+3. Skips postings already handled (`data/seen.db`, plus what is in Notion).
+4. Trashes untouched rows whose posting is no longer listed anywhere.
+5. Fetches job descriptions for the new postings, scores them, and adds the
+   ones at or above `min_score` with Fit Score, Discipline and Fit Reason.
+6. Writes a summary row to the **Job Tracker Runs** database.
+
+## Where it runs
+
+On the Orange Pi, as the `jobtracker` container defined in the
+[pi-docker](../pi-docker) repo (`docker-compose.yml`, config
+`jobtracker_runner_py`). It runs once when the container starts, then daily
+at 07:00 Johannesburg time. Each run downloads this repo's `main` from
+GitHub, so **a push to `main` is a deploy**: code and `config.toml` changes
+apply from the next run, with no rebuild. The seen store lives on the
+`jobtracker-data` volume. Secrets (`NOTION_TOKEN`, `NOTION_DATABASE_ID`,
+`ANTHROPIC_API_KEY`) are in `~/docker/jobtracker/.env` on the Pi only.
+
+- Run now: restart the container (arr-mcp `restart_container jobtracker`).
+- Logs: arr-mcp `container_logs jobtracker`, or the Job Tracker Runs database.
 
 ## Layout
 
     job_tracker/
-      __main__.py         fetch -> filter -> seen store -> AI score -> Notion
+      __main__.py         the run: prune, fetch, filter, close, score, add, log
       config.py           loads and checks config.toml
-      filters.py          location / keyword / link / age filters (all sources)
+      filters.py          keyword / location / link / age filters, cross-source de-dup
       scoring.py          Claude fit scoring against the [scoring] profile
-      notion.py           Notion API client, with pacing and retries
-      store.py            SQLite seen-postings store (with scores)
-      text.py             matching, URL and date helpers
+      notion.py           Notion API client (pacing, retries, run log)
+      store.py            SQLite seen store: every posting handled, with status and score
+      text.py             matching, URL, title and studio normalising
       sources/
         __init__.py       Source interface + SOURCE_TYPES registry
-        google_sheet.py   public Google Sheet source
+        google_sheet.py   the community sheet
+        job_boards.py     studio job boards (8 hiring systems)
     tests/
 
-## Setup
+## Local use
 
-1. Create an internal integration at notion.so/profile/integrations and copy
-   the token.
-2. In Notion, open the Job Tracker database, then `...` -> Connections ->
-   add the integration. Without this the API returns nothing.
-3. `cp .env.example .env` and fill in the token.
-4. For AI scoring: create an API key at platform.claude.com and add it to
-   `.env` as `ANTHROPIC_API_KEY`. Then add three columns to the Notion
-   database: **Fit Score** (Number), **Discipline** (Select) and
-   **Fit Reason** (Text). The run stops with a message if any are missing.
+    uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
+    .venv/bin/python -m pytest
+    .venv/bin/python -m job_tracker --dry-run --no-score
 
-## Run
+A dry run writes nothing (Notion, seen store, run log). With scoring on it
+calls the API, so cap it while tuning the profile:
 
-    docker compose build
-    docker compose run --rm job-tracker
+    set -a; . ./.env; set +a
+    .venv/bin/python -m job_tracker --dry-run --limit 20
 
-Dry run, no Notion or seen-store writes and no Notion token needed:
+Other flags: `--no-score`, `--limit N`, `--rescore-rejected`, `--prune`
+(only the Not Interested clean-up; add `--dry-run` to list).
 
-    docker compose run --rm job-tracker --dry-run --no-score
+## Configuration (`config.toml`)
 
-A dry run with scoring shows each posting's score and reason, best first,
-which is how to tune the profile. It does call the API, so cap it:
+A typo or unknown key stops the run with a message naming it.
 
-    docker compose run --rm job-tracker --dry-run --limit 20
-
-`--limit N` also works on a real run, e.g. for a careful first run.
-
-Locally, without Docker:
-
-    pip install -r requirements.txt -r requirements-dev.txt
-    python -m job_tracker --dry-run --no-score
-    python -m pytest
-
-## AI scoring
-
-Configured under `[scoring]` in `config.toml`:
-
-- `profile`: what you're looking for, written like a recruiter brief. This
-  is the main thing to edit.
-- `min_score`: postings below this (default 6) are not added to Notion.
-- `model` / `effort`: `claude-opus-5-5` at `low` by default. Each posting is
-  scored once, so the cost is mostly the first run (a couple of hundred
-  postings) and then a handful a day. `claude-haiku-5-5` is much cheaper and
-  a weaker judge.
-- `disciplines`: the options for the Discipline column.
-
-The title keywords still decide what gets scored, so they can be broader
-than before: the profile decides what is kept. If the API is down or rate
-limited, postings that passed the keywords are added without a score.
-Rejected postings are in `data/seen.db` (`status = 'rejected'`) with their
-score and reason, if you want to check what is being filtered out:
-
-    sqlite3 data/seen.db "select score, title, studio, reason from seen where status='rejected' order by score desc"
-
-## Daily schedule (Pi crontab)
-
-    0 7 * * * cd /home/<user>/job-tracker && /usr/bin/docker compose run --rm job-tracker >> /var/log/job-tracker.log 2>&1
-
-## Configuration
-
-Everything lives in `config.toml`: sources, title keywords and exclusions,
-software keywords, allowed locations, remote handling, maximum age, sheet
-column names and Notion column names. Docker mounts the file, so edits take
-effect on the next run without rebuilding. A typo or unknown key stops the
-run with a message naming the key.
-
-Only a code change (`job_tracker/`, `requirements.txt`) needs
-`docker compose build`.
-
-## Clearing out Not Interested rows
-
-    docker compose run --rm job-tracker --prune --dry-run   # list them
-    docker compose run --rm job-tracker --prune
-
-Records every row whose Interest is Not Interested in `data/seen.db`, then
-moves it to the Notion trash (restorable there for 30 days). Because the
-posting is in the seen store, the sync never adds it again. Rows with a
-Status set (Applied, Interviewing...) are always kept. Run it on the machine
-that does the daily sync, so it writes to that machine's `data/seen.db`.
+- `[[sources]]`: the sheet, and the `job_boards` list (below).
+- `[filters]`: `title_keywords` decide what gets scored; `title_exclusions`
+  drop FX/CFX/crowd and similar first. Keep the keywords broad: the profile
+  does the judging.
+- `[locations] allowed`: countries and regions that pass at all.
+- `[scoring]`: `profile` (the recruiter brief: discipline fit, seniority,
+  second choices, location tiers), `min_score`, `model`, `effort`,
+  `disciplines`. When any of these change, postings rejected before are
+  scored again on the next run (`rescore_on_profile_change`).
+- `[notion]`: `auto_prune` (Not Interested clean-up), `prune_closed`
+  (closed-posting clean-up), `runs_database_id` (run log; empty to turn off),
+  and column names under `[notion.properties]` if you rename one.
 
 ## Studio job boards
 
-The `job_boards` source reads studios' own job boards through the public
-feeds of Greenhouse, Lever, Ashby, SmartRecruiters and Workable. To add a
-studio, find a job link on its careers page; the board's slug is the part
-after the site name:
+The `job_boards` source reads studios' boards through public feeds. To add a
+studio, find a job link on its careers page and take the board name from it:
 
 | Job link looks like | site | slug |
 |---|---|---|
@@ -122,27 +90,46 @@ after the site name:
 | `jobs.ashbyhq.com/glitch/...` | ashby | glitch |
 | `jobs.smartrecruiters.com/rodeofx/...` | smartrecruiters | rodeofx |
 | `apply.workable.com/one-of-us/...` | workable | one-of-us |
+| `framestore.recruitee.com/o/...` | recruitee | framestore |
+| `cinesitelondon.bamboohr.com/careers/...` | bamboohr | cinesitelondon |
+| `jobs.jobvite.com/double-negative-visual-effects/...` | jobvite | double-negative-visual-effects |
 
-Then add `{ site = "...", slug = "..." }` to `boards` in `config.toml`.
-Board postings skip the age filter, since a board only lists open jobs.
-A job that is also on the sheet (same studio, same title ignoring words like
-senior, freelance or contract) is added once, from the sheet.
+Add `{ site = "...", slug = "...", studio = "..." }` to `boards`. BambooHR
+gives no country, so also set `country = "..."` there.
 
-## Adding a source
+- Board postings skip the age filter: a board only lists open jobs, and
+  studios keep evergreen roles open for years.
+- A job on both the sheet and a board (same studio, same title ignoring
+  senior/freelance/contract and anything in brackets) is added once.
+- A board that fails to load is a warning in the run log; its rows are not
+  closed that run.
 
-Write a class in `job_tracker/sources/` with a `name`, a
-`from_config(cls, cfg)` classmethod and `fetch() -> list[Posting]`, register
-it in `SOURCE_TYPES`, then add a `[[sources]]` table with that `type` to
-`config.toml`. Filtering, de-duplication and Notion writes are shared.
+## Run log
+
+Each run adds a row to **Job Tracker Runs** in Notion: Result (OK, Warnings,
+Failed), Added, Scored, Rejected, Pruned, Closed, Cost (estimated API spend)
+and Notes (errors, warnings, best new postings). The Notion integration has
+to be connected to that database (`...` -> Connections). A run that fails
+still writes its row when Notion is reachable; if the container cannot even
+download the code, only `container_logs` shows it.
+
+## Checking what was filtered out
+
+    sqlite3 data/seen.db "select score, title, studio, reason from seen where status='rejected' order by score desc"
+
+Statuses: `added`, `present` (already in Notion), `rejected` (below
+`min_score`), `dismissed` (Not Interested), `closed` (no longer listed).
 
 ## Failure modes
 
-- A sheet source refuses to run if its header row no longer contains the
-  expected column names, rather than mapping the wrong fields. Fix it with
-  `[sources.columns]` in `config.toml`.
-- If the CSV export stops being public, it exits with an error. The fallback
-  is the Sheets API with an API key.
-- Notion rate limits (429) and server errors are retried with backoff. If a
-  run still fails partway, the next run picks up where it left off.
-- Deleting `data/seen.db` is safe: the next run rebuilds it from Notion, but
-  rows you deleted from Notion may come back once.
+- The sheet stops being public or changes its header row: the run fails with
+  a message (Failed in the run log). Fix headers with `[sources.columns]`.
+- Notion rate limits and server errors are retried with backoff; a run that
+  still fails part-way is picked up by the next one.
+- If Claude is unavailable, postings that passed the keywords are added
+  without a score (a warning in the run log).
+- Closed-posting clean-up refuses to remove more than a quarter of the
+  untouched rows at once, in case a source changed shape.
+- The seen store is not in git and has no backup. Losing it is recoverable:
+  the next run rebuilds it from Notion, but postings you dismissed more than
+  30 days earlier (gone from the Notion trash) could come back once.

@@ -46,7 +46,17 @@ boards = [
     { site = "lever", slug = "bentoboxent", studio = "Bento Box" },
     { site = "lever", slug = "magnopus", studio = "Magnopus" },
     { site = "ashby", slug = "glitch", studio = "Glitch Productions" },
+    { site = "greenhouse", slug = "sonypicturesanimation", studio = "Sony Pictures Animation" },
+    { site = "recruitee", slug = "framestore", studio = "Framestore" },
+    { site = "jobvite", slug = "double-negative-visual-effects", studio = "DNEG" },
+    # BambooHR feeds give a city but no country, so name the country here.
+    { site = "bamboohr", slug = "cinesitelondon", studio = "Cinesite", country = "United Kingdom" },
+    { site = "bamboohr", slug = "imageengine", studio = "Image Engine", country = "Canada" },
+    { site = "bamboohr", slug = "dupevfx", studio = "Dupe VFX", country = "United Kingdom" },
 ]
+# Not covered by any feed here (they still reach you through the sheet):
+# ILM, Walt Disney Animation and Pixar (Disney careers site), DreamWorks
+# (inside NBCUniversal's board), Blue Zoo, Brown Bag, Netflix Animation.
 
 [filters]
 # A row is kept when its job title contains one of these as a whole word
@@ -70,6 +80,13 @@ title_keywords = [
     "look development",
     "tools developer",
     "tools td",
+    # Any TD title (Asset/Show TD, Shot TD, Shading TD...). FX, CFX and crowd
+    # TDs are still dropped by title_exclusions below.
+    "td",
+    # Tools roles, e.g. "Engineer, Animation & Cinematic Tools".
+    "tools",
+    "tools engineer",
+    "tools programmer",
 ]
 
 # Dropped even if the title matched above. FX is a different discipline
@@ -142,12 +159,17 @@ Good fits (score high):
 - Rigging, character TD or creature TD roles
 - Pipeline TD, pipeline developer or tools developer roles in VFX,
   animation or games production
+- Tools engineer / tools programmer roles building DCC, pipeline or artist
+  tools (Python, C++, Qt, USD). Game engine, gameplay or online programming
+  is not a fit
+- Other production TD roles (asset TD, shot TD, show TD), mid or senior
 - 3D generalist roles at VFX, animation or games studios, especially ones
   that lean on lighting or rigging
 - Mid or senior level; junior roles only if otherwise a very strong match
 - Animation and VFX studios first; games studios are fine
 
 Not a fit (score low):
+- Technical animator roles
 - Technical artist roles: these are almost always real-time games tech art
   (shaders, engine tools, performance). Only score one well if it is
   clearly rigging, lighting or pipeline work
@@ -157,8 +179,8 @@ Not a fit (score low):
 - HR, production management, recruiting and other non-artist roles
 
 Second choice (score about 2 lower than an equally matched lighting role):
-- Lookdev / look development artist roles, especially senior or lead ones
-  that expect a deep lookdev portfolio
+- Lookdev / look development artist or shading TD roles, especially senior
+  or lead ones that expect a deep lookdev portfolio
 
 Location and right to work: British citizen with full right to work in the
 UK, currently based outside the UK. First score the role on fit alone, then
@@ -207,6 +229,16 @@ allowed = [
 # restored for 30 days. Rows with a Status set are always kept.
 auto_prune = true
 # not_interested = "Not Interested"   # the Interest option that means "remove"
+
+# Each run, also trash rows you haven't touched (no Interest, no Status) whose
+# posting is no longer listed by the sheet or its studio's board. Skipped for
+# a source that failed to load, and if more than a quarter would go at once.
+prune_closed = true
+
+# One row per run (added, scored, pruned, closed, cost, warnings) in the
+# "Job Tracker Runs" database. The integration must be connected to it in
+# Notion (... -> Connections). Leave empty to turn off.
+runs_database_id = "4227e6dea3f081f7b148ddaa4b94a6f7"
 
 # Notion column names. Only needed if you rename a column in Notion;
 # these are the defaults.

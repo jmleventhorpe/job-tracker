@@ -171,7 +171,7 @@ def test_run_adds_good_rejects_poor_and_falls_back(tmp_path, monkeypatch):
                                  posting("Lighter", "https://a.com/4"))
     cfg = parse_config({**BASE, "state": {"db_path": str(tmp_path / "seen.db")},
                         "scoring": {"enabled": True, "profile": "p"}})
-    scorer = mock.Mock()
+    scorer = mock.Mock(cost=0.01)
     scorer.score_all.return_value = {good.key: Score(8, "Other", "fits"),
                                      poor.key: Score(2, "Other", "FX"),
                                      broken.key: None}
@@ -184,12 +184,13 @@ def test_run_adds_good_rejects_poor_and_falls_back(tmp_path, monkeypatch):
     monkeypatch.setenv("NOTION_TOKEN", "t")
     monkeypatch.setenv("NOTION_DATABASE_ID", "db")
     monkeypatch.setattr(app, "load_config", lambda _: cfg)
-    monkeypatch.setattr(app, "collect", lambda _: [good, poor, broken, known])
+    monkeypatch.setattr(app, "collect",
+                        lambda *_: ([good, poor, broken, known], [good, poor, broken, known], []))
     monkeypatch.setattr(app, "make_scorer", lambda *_: scorer)
     monkeypatch.setattr(app, "Notion", lambda *_: notion)
 
     args = argparse.Namespace(config="x", dry_run=False, no_score=False, limit=0,
-                              prune=False)
+                              prune=False, rescore_rejected=False)
     assert app.run(args) == 0
 
     scorer.score_all.assert_called_once_with([good, poor, broken])  # not `known`

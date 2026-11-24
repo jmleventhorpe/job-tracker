@@ -34,6 +34,10 @@ class Posting:
     # True when the source only lists currently open jobs (a studio's own
     # board), so the posting's age says nothing about whether it is stale.
     still_open: bool = False
+    # Job ad text for the scorer, where the source has it (plain text).
+    description: str = ""
+    # Where a source can fetch the description later, if the listing lacked it.
+    detail: str = ""
 
     @property
     def key(self) -> tuple[str, str]:
@@ -61,3 +65,5 @@ class Posting:
         self.date_issued = self.date_issued or other.date_issued
         self.experience = self.experience or other.experience
         self.work_mode = self.work_mode or other.work_mode
+        self.description = self.description or other.description
+        self.detail = self.detail or other.detail

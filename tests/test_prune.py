@@ -59,7 +59,7 @@ def test_prune_records_then_trashes_and_keeps_applied(tmp_path):
         {"id": "p2", "role": "Lighter", "url": "https://a.com/2", "studio": "Acme",
          "source": "Community Sheet", "status": "Applied"},
     ]
-    assert app.prune(cfg, notion, dry_run=False) == 0
+    assert app.prune(cfg, notion, dry_run=False) == 1
     notion.trash.assert_called_once_with("p1")
     rows = sqlite3.connect(cfg.db_path).execute(
         "SELECT title, status, notion_id FROM seen").fetchall()
@@ -75,7 +75,7 @@ def test_prune_dry_run_writes_nothing(tmp_path):
     notion.pages_with_select.return_value = [
         {"id": "p1", "role": "Rigger", "url": "u", "studio": "A", "source": "",
          "status": ""}]
-    assert app.prune(cfg, notion, dry_run=True) == 0
+    assert app.prune(cfg, notion, dry_run=True) == 1
     notion.trash.assert_not_called()
     assert not (tmp_path / "seen.db").exists()
 
@@ -93,13 +93,13 @@ def test_auto_prune_runs_before_sync(tmp_path, monkeypatch):
     monkeypatch.setenv("NOTION_TOKEN", "t")
     monkeypatch.setenv("NOTION_DATABASE_ID", "db")
     monkeypatch.setattr(app, "load_config", lambda _: cfg)
-    monkeypatch.setattr(app, "prune", lambda *a, **k: order.append("prune"))
-    monkeypatch.setattr(app, "collect", lambda _: order.append("collect") or [])
+    monkeypatch.setattr(app, "prune", lambda *a, **k: order.append("prune") or 0)
+    monkeypatch.setattr(app, "collect", lambda *_: order.append("collect") or ([], [], []))
     notion = mock.Mock()
     notion.existing_pages.return_value = {}
     monkeypatch.setattr(app, "Notion", lambda *_: notion)
     args = argparse.Namespace(config="x", dry_run=False, no_score=True, limit=0,
-                              prune=False)
+                              prune=False, rescore_rejected=False)
     assert app.run(args) == 0
     assert order == ["prune", "collect"]
 

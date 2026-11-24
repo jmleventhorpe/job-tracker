@@ -67,8 +67,9 @@ class Notion:
                 continue
             if resp.status_code == 404:
                 raise Fatal(
-                    "Notion returned 404. The token can't see the Job Tracker "
-                    "database, or NOTION_DATABASE_ID is wrong."
+                    f"Notion returned 404 for {what}. The integration isn't "
+                    "connected to that database (in Notion: ... -> Connections), "
+                    "or its ID is wrong."
                 )
             if resp.status_code >= 400:
                 raise Fatal(f"Notion {what} failed ({resp.status_code}): {resp.text}")
@@ -117,6 +118,8 @@ class Notion:
                     "studio": "".join(t.get("plain_text", "") for t in studio),
                     "role": role,
                     "source": _select_name(props.get(p["source"])),
+                    "interest": _select_name(props.get(p["interest"])),
+                    "status": _select_name(props.get(p["status"])),
                 }
             if not data.get("has_more"):
                 return pages
@@ -198,3 +201,30 @@ class Notion:
             json={"parent": {"database_id": self.database_id}, "properties": props},
         )
         return data["id"]
+
+    def log_run(self, database_id: str, report) -> None:
+        """Add one row to the run log database (see README: Run log)."""
+        stamp = report.started.astimezone().strftime("%Y-%m-%d %H:%M")
+        headline = (f"{report.result}: {len(report.added)} added"
+                    if not report.error else "Failed")
+        notes = []
+        if report.error:
+            notes.append(f"Error: {report.error}")
+        notes += [f"Warning: {w}" for w in report.warnings]
+        if report.added:
+            notes.append("Best new: " + "; ".join(report.best()))
+        props = {
+            "Run": {"title": [{"text": {"content": f"{stamp} - {headline}"}}]},
+            "Date": {"date": {"start": report.started.isoformat(timespec="seconds")}},
+            "Result": {"select": {"name": report.result}},
+            "Added": {"number": len(report.added)},
+            "Scored": {"number": report.scored},
+            "Rejected": {"number": report.rejected},
+            "Pruned": {"number": report.pruned},
+            "Closed": {"number": report.closed},
+            "Notes": _rich_text("\n".join(notes) or "No problems."),
+        }
+        if report.cost is not None:
+            props["Cost"] = {"number": round(report.cost, 2)}
+        self._request("POST", "/pages", "run log",
+                      json={"parent": {"database_id": database_id}, "properties": props})

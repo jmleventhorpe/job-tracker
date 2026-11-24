@@ -58,6 +58,7 @@ class ScoringConfig:
     max_workers: int = 4
     disciplines: list[str] = field(default_factory=lambda: ["Other"])
     profile: str = ""
+    rescore_on_profile_change: bool = True
 
 
 @dataclass
@@ -69,6 +70,8 @@ class Config:
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
     not_interested: str = DEFAULT_NOT_INTERESTED
     auto_prune: bool = False
+    prune_closed: bool = False
+    runs_database_id: str = ""
 
 
 class _Section:
@@ -140,6 +143,8 @@ def parse_config(raw: dict[str, Any]) -> Config:
     props_raw.reject_unknown()
     not_interested = notion.get("not_interested", str, DEFAULT_NOT_INTERESTED)
     auto_prune = notion.get("auto_prune", bool, False)
+    prune_closed = notion.get("prune_closed", bool, False)
+    runs_database_id = notion.get("runs_database_id", str, "")
     notion.reject_unknown()
 
     scoring = _parse_scoring(top.get("scoring", dict, {}))
@@ -153,6 +158,8 @@ def parse_config(raw: dict[str, Any]) -> Config:
         scoring=scoring,
         not_interested=not_interested,
         auto_prune=auto_prune,
+        prune_closed=prune_closed,
+        runs_database_id=runs_database_id,
     )
 
 
@@ -167,6 +174,8 @@ def _parse_scoring(raw: dict[str, Any]) -> ScoringConfig:
         max_workers=s.get("max_workers", int, d.max_workers),
         disciplines=s.get("disciplines", list, d.disciplines),
         profile=s.get("profile", str, d.profile),
+        rescore_on_profile_change=s.get("rescore_on_profile_change", bool,
+                                        d.rescore_on_profile_change),
     )
     s.reject_unknown()
     if cfg.effort not in EFFORT_LEVELS:

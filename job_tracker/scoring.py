@@ -6,6 +6,7 @@ store, so each posting is scored once.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -24,6 +25,13 @@ FALLBACK_MODELS = {
 }
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
+# USD per million tokens (input, output), for the run log's cost estimate.
+PRICES = {
+    "claude-opus-5-5": (4.00, 20.00),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-haiku-5-5": (0.10, 0.50),
+}
+
 INSTRUCTIONS = """\
 You screen job adverts for one person. Their profile is below. For each \
 advert, judge how well it fits that person: discipline, seniority, software \
@@ -37,12 +45,26 @@ Score from 0 to 10:
 - 3-5: adjacent; only worth a look if little else is around
 - 0-2: not a fit
 
+When a job description is included, use it: required seniority and years of \
+experience, the software and tools named, the actual day-to-day work, and \
+any mention of visa sponsorship or relocation support (which offsets the \
+location adjustment for that role by up to 2 points). Without one, judge from \
+the other fields.
+
 Give the single best discipline from the allowed list, and a reason of one \
 short sentence (under 25 words) that names the deciding factor.
 
 <profile>
 {profile}
 </profile>"""
+
+
+def fingerprint(cfg: ScoringConfig) -> str:
+    """Changes whenever anything that affects a score changes, so earlier
+    rejections can be scored again under the new settings."""
+    parts = [cfg.model, cfg.effort, str(cfg.min_score), "|".join(cfg.disciplines),
+             cfg.profile.strip(), INSTRUCTIONS]
+    return hashlib.sha256("\n\x1e".join(parts).encode()).hexdigest()[:16]
 
 
 @dataclass
@@ -75,6 +97,8 @@ def describe(p: Posting) -> str:
         f"Software: {p.software or 'not given'}",
         f"Date posted: {p.date_issued or 'not given'}",
     ]
+    if p.description:
+        lines.append(f"\n<job_description>\n{p.description}\n</job_description>")
     return "\n".join(lines)
 
 
@@ -86,6 +110,14 @@ class Scorer:
         self.input_tokens = 0
         self.output_tokens = 0
         self._lock = threading.Lock()
+
+    @property
+    def cost(self) -> float | None:
+        """Estimated USD spent this run, or None for a model without a price."""
+        price = PRICES.get(self.cfg.model)
+        if not price:
+            return None
+        return (self.input_tokens * price[0] + self.output_tokens * price[1]) / 1e6
 
     def score(self, posting: Posting) -> Score | None:
         """Score one posting. None means it could not be scored this time
