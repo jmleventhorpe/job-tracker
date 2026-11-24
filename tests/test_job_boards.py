@@ -157,3 +157,9 @@ def test_age_filter_skips_postings_from_open_boards():
                     **old)]
     kept, _ = apply_filters(rows, cfg)
     assert [k.studio for k in kept] == ["B"]
+
+
+def test_role_core_treats_technical_director_as_td():
+    from job_tracker.text import role_core
+    assert role_core("Asset/Show Technical Director") == role_core("Asset/Show TD")
+    assert role_core("Senior Maya Technical Director (TD) - 6 Month Contract") == role_core("Maya TD")

@@ -37,6 +37,8 @@ def role_core(role: str) -> str:
     Lead and supervisor are kept: those are different jobs.
     """
     text = re.sub(r"\([^)]*\)", " ", role.lower())
+    # Same job, different spelling: "Technical Director" and "TD".
+    text = re.sub(r"\btechnical\s+directors?\b", " td ", text)
     words = [w for w in re.findall(r"[a-z]+", text) if w not in _ROLE_FILLER]
     return " ".join(sorted(set(words)))
 
