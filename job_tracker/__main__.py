@@ -1,6 +1,6 @@
 """Sync job sources into the Notion Job Tracker.
 
-    python -m jobtracker [--config config.toml] [--dry-run] [--no-score] [--limit N]
+    python -m job_tracker [--config config.toml] [--dry-run] [--no-score] [--limit N]
 
 Pipeline: fetch sources -> hard filters -> skip postings seen before ->
 AI fit score (optional) -> Notion.
@@ -179,7 +179,7 @@ def run(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="jobtracker")
+    parser = argparse.ArgumentParser(prog="job-tracker")
     parser.add_argument("--config", default="config.toml")
     parser.add_argument(
         "--dry-run", action="store_true",

@@ -1,4 +1,4 @@
-# JobTracker
+# job-tracker
 
 Pulls job postings from configured sources (currently the community
 VFX/animation job sheet) into the Notion Job Tracker.
@@ -14,7 +14,7 @@ Reason; poor fits are recorded locally and never scored again.
 
 ## Layout
 
-    jobtracker/
+    job_tracker/
       __main__.py         fetch -> filter -> seen store -> AI score -> Notion
       config.py           loads and checks config.toml
       filters.py          location / keyword / link / age filters (all sources)
@@ -42,23 +42,23 @@ Reason; poor fits are recorded locally and never scored again.
 ## Run
 
     docker compose build
-    docker compose run --rm jobtracker
+    docker compose run --rm job-tracker
 
 Dry run, no Notion or seen-store writes and no Notion token needed:
 
-    docker compose run --rm jobtracker --dry-run --no-score
+    docker compose run --rm job-tracker --dry-run --no-score
 
 A dry run with scoring shows each posting's score and reason, best first,
 which is how to tune the profile. It does call the API, so cap it:
 
-    docker compose run --rm jobtracker --dry-run --limit 20
+    docker compose run --rm job-tracker --dry-run --limit 20
 
 `--limit N` also works on a real run, e.g. for a careful first run.
 
 Locally, without Docker:
 
     pip install -r requirements.txt -r requirements-dev.txt
-    python -m jobtracker --dry-run --no-score
+    python -m job_tracker --dry-run --no-score
     python -m pytest
 
 ## AI scoring
@@ -84,7 +84,7 @@ score and reason, if you want to check what is being filtered out:
 
 ## Daily schedule (Pi crontab)
 
-    0 7 * * * cd /home/<user>/jobtracker && /usr/bin/docker compose run --rm jobtracker >> /var/log/jobtracker.log 2>&1
+    0 7 * * * cd /home/<user>/job-tracker && /usr/bin/docker compose run --rm job-tracker >> /var/log/job-tracker.log 2>&1
 
 ## Configuration
 
@@ -94,13 +94,13 @@ column names and Notion column names. Docker mounts the file, so edits take
 effect on the next run without rebuilding. A typo or unknown key stops the
 run with a message naming the key.
 
-Only a code change (`jobtracker/`, `requirements.txt`) needs
+Only a code change (`job_tracker/`, `requirements.txt`) needs
 `docker compose build`.
 
 ## Clearing out Not Interested rows
 
-    docker compose run --rm jobtracker --prune --dry-run   # list them
-    docker compose run --rm jobtracker --prune
+    docker compose run --rm job-tracker --prune --dry-run   # list them
+    docker compose run --rm job-tracker --prune
 
 Records every row whose Interest is Not Interested in `data/seen.db`, then
 moves it to the Notion trash (restorable there for 30 days). Because the
@@ -110,7 +110,7 @@ that does the daily sync, so it writes to that machine's `data/seen.db`.
 
 ## Adding a source
 
-Write a class in `jobtracker/sources/` with a `name`, a
+Write a class in `job_tracker/sources/` with a `name`, a
 `from_config(cls, cfg)` classmethod and `fetch() -> list[Posting]`, register
 it in `SOURCE_TYPES`, then add a `[[sources]]` table with that `type` to
 `config.toml`. Filtering, de-duplication and Notion writes are shared.

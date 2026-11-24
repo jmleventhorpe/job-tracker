@@ -1,8 +1,8 @@
 services:
-  jobtracker:
+  job-tracker:
     build:
       context: .
-    container_name: jobtracker
+    container_name: job-tracker
     env_file: .env
     restart: "no"
     volumes:

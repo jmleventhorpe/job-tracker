@@ -1,11 +1,11 @@
 import sqlite3
 from unittest import mock
 
-from jobtracker import __main__ as app
-from jobtracker.config import DEFAULT_NOTION_PROPERTIES, parse_config
-from jobtracker.models import Posting
-from jobtracker.notion import Notion
-from jobtracker.store import SeenStore
+from job_tracker import __main__ as app
+from job_tracker.config import DEFAULT_NOTION_PROPERTIES, parse_config
+from job_tracker.models import Posting
+from job_tracker.notion import Notion
+from job_tracker.store import SeenStore
 
 BASE = {"sources": [{"type": "google_sheet"}], "filters": {"title_keywords": ["x"]}}
 

@@ -3,14 +3,14 @@ from unittest import mock
 
 import pytest
 
-from jobtracker.config import FilterConfig, load_config, parse_config
-from jobtracker.filters import apply_filters, location_ok, title_ok
-from jobtracker.models import Fatal, Posting
-from jobtracker.notion import Notion
-from jobtracker.sources import build_sources
-from jobtracker.sources.google_sheet import GoogleSheetSource
-from jobtracker.store import SeenStore
-from jobtracker.text import keyword_hit, parse_date, tidy_url
+from job_tracker.config import FilterConfig, load_config, parse_config
+from job_tracker.filters import apply_filters, location_ok, title_ok
+from job_tracker.models import Fatal, Posting
+from job_tracker.notion import Notion
+from job_tracker.sources import build_sources
+from job_tracker.sources.google_sheet import GoogleSheetSource
+from job_tracker.store import SeenStore
+from job_tracker.text import keyword_hit, parse_date, tidy_url
 
 
 def posting(**kw) -> Posting:
@@ -201,7 +201,7 @@ def test_notion_retries_429_then_succeeds():
     n = Notion("t", "db", {})
     with mock.patch.object(n.session, "request", side_effect=[
         _resp(429, headers={"Retry-After": "0"}), _resp(502), _resp(200, {"id": "p1"}),
-    ]) as req, mock.patch("jobtracker.notion.time.sleep"):
+    ]) as req, mock.patch("job_tracker.notion.time.sleep"):
         assert n._request("POST", "/pages", "create") == {"id": "p1"}
     assert req.call_count == 3
 
@@ -209,7 +209,7 @@ def test_notion_retries_429_then_succeeds():
 def test_notion_does_not_retry_400():
     n = Notion("t", "db", {})
     with mock.patch.object(n.session, "request", return_value=_resp(400)) as req, \
-            mock.patch("jobtracker.notion.time.sleep"):
+            mock.patch("job_tracker.notion.time.sleep"):
         with pytest.raises(Fatal, match="400"):
             n._request("POST", "/pages", "create")
     assert req.call_count == 1

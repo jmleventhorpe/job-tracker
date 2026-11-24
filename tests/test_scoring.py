@@ -8,12 +8,12 @@ import anthropic
 import httpx2 as httpx
 import pytest
 
-from jobtracker import __main__ as app
-from jobtracker.config import ScoringConfig, parse_config
-from jobtracker.models import Fatal, Posting
-from jobtracker.notion import Notion
-from jobtracker.scoring import Score, Scorer, describe
-from jobtracker.store import SeenStore
+from job_tracker import __main__ as app
+from job_tracker.config import ScoringConfig, parse_config
+from job_tracker.models import Fatal, Posting
+from job_tracker.notion import Notion
+from job_tracker.scoring import Score, Scorer, describe
+from job_tracker.store import SeenStore
 
 CFG = ScoringConfig(enabled=True, profile="Rigger, UK.",
                     disciplines=["Rigging", "Lighting", "Other"])
