@@ -109,10 +109,14 @@ class Notion:
                 url = (props.get(p["url"]) or {}).get("url") or ""
                 title = (props.get(p["role"]) or {}).get("title") or []
                 role = "".join(t.get("plain_text", "") for t in title)
+                studio = (props.get(p["studio"]) or {}).get("rich_text") or []
                 pages[(normalise_url(url), normalise_role(role))] = {
                     "id": page["id"],
                     "experience": _select_name(props.get(p["experience"])),
                     "work_mode": _select_name(props.get(p["work_mode"])),
+                    "studio": "".join(t.get("plain_text", "") for t in studio),
+                    "role": role,
+                    "source": _select_name(props.get(p["source"])),
                 }
             if not data.get("has_more"):
                 return pages

@@ -14,6 +14,7 @@ from typing import Any, Protocol
 
 from ..models import Fatal, Posting
 from .google_sheet import GoogleSheetSource
+from .job_boards import JobBoardsSource
 
 
 class Source(Protocol):
@@ -27,6 +28,7 @@ class Source(Protocol):
 
 SOURCE_TYPES: dict[str, type] = {
     "google_sheet": GoogleSheetSource,
+    "job_boards": JobBoardsSource,
 }
 
 

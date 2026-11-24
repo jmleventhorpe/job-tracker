@@ -12,6 +12,7 @@ import sqlite3
 from datetime import datetime, timezone
 
 from .models import Posting
+from .text import normalise_studio, role_core
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS seen (
@@ -40,6 +41,7 @@ class SeenStore:
         if path != ":memory:":
             os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         self.db = sqlite3.connect(path)
+        self._cache: dict[str, set[tuple[str, str]]] = {}
         self.db.executescript(SCHEMA)
         have = {row[1] for row in self.db.execute("PRAGMA table_info(seen)")}
         for name, kind in EXTRA_COLUMNS.items():
@@ -51,9 +53,24 @@ class SeenStore:
         return self.db.execute("SELECT COUNT(*) FROM seen").fetchone()[0]
 
     def has(self, posting: Posting) -> bool:
-        return self.db.execute(
+        """Seen before: same link and title, or the same studio and title
+        from a different source (the same job listed in two places)."""
+        if self.db.execute(
             "SELECT 1 FROM seen WHERE url = ? AND role = ?", posting.key
-        ).fetchone() is not None
+        ).fetchone():
+            return True
+        return posting.studio_role in self._other_sources(posting.source)
+
+    def _other_sources(self, source: str) -> set[tuple[str, str]]:
+        """(studio, role core) of everything recorded from other sources.
+        Cached per source; add() clears the cache."""
+        if source not in self._cache:
+            self._cache[source] = {
+                (normalise_studio(s), role_core(t))
+                for s, t in self.db.execute(
+                    "SELECT studio, title FROM seen WHERE source != ?", (source,))
+            }
+        return self._cache[source]
 
     def add(
         self,
@@ -76,6 +93,7 @@ class SeenStore:
              score.reason if score else None),
         )
         self.db.commit()
+        self._cache.clear()
 
     def close(self) -> None:
         self.db.close()

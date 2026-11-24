@@ -19,6 +19,35 @@ def normalise_role(role: str) -> str:
     return squash(role).lower()
 
 
+_STUDIO_FILLER = {"the", "studio", "studios", "animation", "entertainment",
+                  "productions", "production", "inc", "ltd", "llc", "limited",
+                  "vfx", "co"}
+
+
+_ROLE_FILLER = {"senior", "sr", "junior", "jr", "mid", "experienced", "freelance",
+                "contract", "temp", "temporary", "month", "months", "fixed", "term",
+                "level", "the", "and", "of", "a", "an"}
+
+
+def role_core(role: str) -> str:
+    """'Freelance Senior Lighting Artist (Contract)' -> 'artist lighting'.
+
+    Drops seniority, contract words, numbers and anything in brackets, so the
+    same job titled slightly differently by two sources still matches.
+    Lead and supervisor are kept: those are different jobs.
+    """
+    text = re.sub(r"\([^)]*\)", " ", role.lower())
+    words = [w for w in re.findall(r"[a-z]+", text) if w not in _ROLE_FILLER]
+    return " ".join(sorted(set(words)))
+
+
+def normalise_studio(studio: str) -> str:
+    """'Outpost VFX' and 'Outpost' -> 'outpost', so sources can be compared."""
+    words = re.findall(r"[a-z0-9]+", studio.lower())
+    kept = [w for w in words if w not in _STUDIO_FILLER]
+    return " ".join(kept or words)
+
+
 def normalise_url(url: str) -> str:
     u = url.strip().lower().rstrip("/")
     for prefix in ("https://", "http://", "mailto:", "www."):

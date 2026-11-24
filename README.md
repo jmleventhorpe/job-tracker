@@ -108,6 +108,26 @@ posting is in the seen store, the sync never adds it again. Rows with a
 Status set (Applied, Interviewing...) are always kept. Run it on the machine
 that does the daily sync, so it writes to that machine's `data/seen.db`.
 
+## Studio job boards
+
+The `job_boards` source reads studios' own job boards through the public
+feeds of Greenhouse, Lever, Ashby, SmartRecruiters and Workable. To add a
+studio, find a job link on its careers page; the board's slug is the part
+after the site name:
+
+| Job link looks like | site | slug |
+|---|---|---|
+| `job-boards.greenhouse.io/sonypicturesimageworks/...` | greenhouse | sonypicturesimageworks |
+| `jobs.lever.co/skydance/...` | lever | skydance |
+| `jobs.ashbyhq.com/glitch/...` | ashby | glitch |
+| `jobs.smartrecruiters.com/rodeofx/...` | smartrecruiters | rodeofx |
+| `apply.workable.com/one-of-us/...` | workable | one-of-us |
+
+Then add `{ site = "...", slug = "..." }` to `boards` in `config.toml`.
+Board postings skip the age filter, since a board only lists open jobs.
+A job that is also on the sheet (same studio, same title ignoring words like
+senior, freelance or contract) is added once, from the sheet.
+
 ## Adding a source
 
 Write a class in `job_tracker/sources/` with a `name`, a

@@ -65,7 +65,7 @@ def apply_filters(
         if not p.url:
             stats["matched but no usable link"] += 1
             continue
-        if cutoff and p.date_issued and p.date_issued < cutoff:
+        if cutoff and p.date_issued and p.date_issued < cutoff and not p.still_open:
             stats[f"matched but older than {cfg.max_age_days} days"] += 1
             continue
         existing = merged.get(p.key)
@@ -74,4 +74,16 @@ def apply_filters(
         else:
             merged[p.key] = p
 
-    return list(merged.values()), stats
+    # The same job from two sources under different links: keep the first
+    # (sources run in config order) and fold the other's details into it.
+    kept: list[Posting] = []
+    by_studio_role: dict[tuple[str, str], Posting] = {}
+    for p in merged.values():
+        first = by_studio_role.get(p.studio_role)
+        if first and first.source != p.source:
+            first.merge(p)
+            stats[f"listed by {first.source} too"] += 1
+            continue
+        by_studio_role.setdefault(p.studio_role, p)
+        kept.append(p)
+    return kept, stats

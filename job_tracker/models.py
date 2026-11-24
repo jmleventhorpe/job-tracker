@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .text import normalise_role, normalise_url
+from .text import normalise_role, normalise_studio, normalise_url, role_core
 
 
 class Fatal(Exception):
@@ -31,11 +31,20 @@ class Posting:
     software: str = ""
     date_issued: str | None = None  # ISO yyyy-mm-dd
     locations: list[str] = field(default_factory=list)
+    # True when the source only lists currently open jobs (a studio's own
+    # board), so the posting's age says nothing about whether it is stale.
+    still_open: bool = False
 
     @property
     def key(self) -> tuple[str, str]:
         """Identity used for de-duplication, both in Notion and the seen store."""
         return (normalise_url(self.url), normalise_role(self.role))
+
+    @property
+    def studio_role(self) -> tuple[str, str]:
+        """Looser identity for spotting the same job listed by two sources
+        under different links. Only compared across different sources."""
+        return (normalise_studio(self.studio), role_core(self.role))
 
     @property
     def location(self) -> str:

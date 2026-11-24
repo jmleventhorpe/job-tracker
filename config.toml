@@ -24,6 +24,30 @@ date_formats = ["%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%Y-%m-%d", "%d/%m/%Y"]
 # title = "job title"
 # url = "source/contact"
 
+# Studios' own job boards, read from their hiring system's public feed. Every
+# opening on the board goes through the same filters and scoring as the sheet.
+# A job also on the sheet (same studio and title) is only added once.
+# site: greenhouse | lever | ashby | smartrecruiters | workable
+# slug: the board name in the studio's job-page URL, e.g.
+#   job-boards.greenhouse.io/sonypicturesimageworks -> sonypicturesimageworks
+# studio: optional; overrides the name the feed gives (Lever gives none).
+[[sources]]
+type = "job_boards"
+name = "Studio Boards"
+boards = [
+    { site = "greenhouse", slug = "sonypicturesimageworks", studio = "Sony Pictures Imageworks" },
+    { site = "smartrecruiters", slug = "rodeofx" },              # Rodeo FX, Mikros
+    { site = "smartrecruiters", slug = "outpostvfx", studio = "Outpost VFX" },
+    { site = "smartrecruiters", slug = "pitchblackcreative" },   # El Ranchito, Folks
+    { site = "workable", slug = "one-of-us", studio = "One of Us" },
+    { site = "workable", slug = "bardel-entertainment", studio = "Bardel Entertainment" },
+    { site = "workable", slug = "cause-and-fx-ltd", studio = "Cause and FX" },
+    { site = "lever", slug = "skydance", studio = "Skydance Animation" },
+    { site = "lever", slug = "bentoboxent", studio = "Bento Box" },
+    { site = "lever", slug = "magnopus", studio = "Magnopus" },
+    { site = "ashby", slug = "glitch", studio = "Glitch Productions" },
+]
+
 [filters]
 # A row is kept when its job title contains one of these as a whole word
 # (case-insensitive, so "lighting" does not match "highlighting"; symbols

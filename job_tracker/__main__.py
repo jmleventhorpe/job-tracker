@@ -18,6 +18,7 @@ from .models import Fatal, Posting
 from .notion import Notion
 from .sources import build_sources
 from .store import SeenStore
+from .text import normalise_studio, role_core
 
 
 def collect(cfg: Config) -> list[Posting]:
@@ -138,6 +139,10 @@ def run(args: argparse.Namespace) -> int:
                                   "fit_reason": "rich_text"})
         existing = notion.existing_pages()
         print(f"  {len(existing)} rows already in Notion")
+        by_studio_role = {
+            (normalise_studio(pg.get("studio", "")), role_core(pg.get("role", ""))): pg
+            for pg in existing.values() if pg.get("studio") and pg.get("role")
+        }
 
         # Rows already in Notion: fill blanks and record them, so the store
         # is populated from Notion on the first run. They are not scored.
@@ -145,6 +150,12 @@ def run(args: argparse.Namespace) -> int:
         new: list[Posting] = []
         for posting in postings:
             page = existing.get(posting.key)
+            twin = by_studio_role.get(posting.studio_role)
+            if not page and twin and twin.get("source") != posting.source:
+                # Same job already added from another source under another link.
+                store.add(posting, twin["id"], status="present")
+                present += 1
+                continue
             if page:
                 if notion.fill_blanks(page, posting):
                     updated += 1
