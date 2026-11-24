@@ -1,14 +1,33 @@
 # Community job sheet -> Notion Job Tracker
-# Edit this file to change filtering. No code changes needed.
+# Edit this file to change sources and filtering. No code changes or image
+# rebuild needed: Docker mounts it, so edits apply on the next run.
 
-[sheet]
+[state]
+# Local record of postings already handled, so a row you rename or delete in
+# Notion is not added again. Mounted from ./data in Docker.
+db_path = "data/seen.db"
+
+# One [[sources]] table per place jobs come from. `name` is written to the
+# Notion Source column. Add more tables to pull from more places.
+[[sources]]
+type = "google_sheet"
+name = "Community Sheet"
 # "Openings" tab of the community job postings sheet (gid=0).
 spreadsheet_id = "1eR2oAXOuflr8CZeGoz3JTrsgNj3KuefbdXJOmNtjEVM"
 gid = 0
+# Tried in order. Day-first, so 03/04/2026 is 3 April.
+date_formats = ["%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%Y-%m-%d", "%d/%m/%Y"]
+
+# Uncomment to override a header if the sheet renames a column. Matched
+# case-insensitively against the start of the header text.
+# [sources.columns]
+# title = "job title"
+# url = "source/contact"
 
 [filters]
-# A row is kept when its job title contains one of these (case-insensitive,
-# matched on word boundaries so "lighting" does not match "highlighting").
+# A row is kept when its job title contains one of these as a whole word
+# (case-insensitive, so "lighting" does not match "highlighting"; symbols
+# are fine, e.g. "c++").
 title_keywords = [
     "rigging",
     "rigger",
@@ -43,8 +62,10 @@ title_exclusions = [
 # deliberately: Houdini-heavy adverts are usually FX roles.
 software_keywords = []
 
-# Rows marked Remote are kept even if their country is blank.
+# Remote rows are kept when their location is blank or only says one of
+# remote_words. A remote role tied to a country not in [locations] is dropped.
 keep_remote_without_country = true
+remote_words = ["remote", "worldwide", "anywhere", "global"]
 
 # Skip postings dated more than this many days ago. Rows with no parseable
 # date are kept, since their age can't be judged. 0 = no limit.
@@ -52,7 +73,8 @@ max_age_days = 90
 
 [locations]
 # Matched against both the Country and the Province/State/Region columns,
-# because the sheet frequently swaps the two for UK rows.
+# because the sheet frequently swaps the two for UK rows. Cells are split on
+# brackets and separators, so "United Kingdom (Remote)" matches "united kingdom".
 allowed = [
     # UK
     "united kingdom", "uk", "england", "scotland", "wales", "northern ireland",
@@ -68,3 +90,14 @@ allowed = [
     "romania", "bulgaria", "greece", "croatia", "slovenia", "serbia",
     "estonia", "latvia", "lithuania", "malta", "cyprus", "ukraine",
 ]
+# Notion column names. Only needed if you rename a column in Notion;
+# these are the defaults.
+# [notion.properties]
+# role = "Role"
+# studio = "Studio"
+# source = "Source"
+# location = "Location"
+# url = "Posting URL"
+# date_issued = "Date Issued"
+# experience = "Experience"
+# work_mode = "Work Mode"

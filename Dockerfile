@@ -5,6 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY sync.py config.toml ./
+COPY jobtracker ./jobtracker
+# Default config baked in as a fallback; docker-compose mounts the live one
+# over it so edits don't need a rebuild.
+COPY config.toml ./
 
-ENTRYPOINT ["python", "sync.py"]
+ENTRYPOINT ["python", "-m", "jobtracker"]

@@ -5,3 +5,8 @@ services:
     container_name: jobtracker
     env_file: .env
     restart: "no"
+    volumes:
+      # Edit config.toml on the host; the next run picks it up, no rebuild.
+      - ./config.toml:/app/config.toml:ro
+      # Seen-postings store (data/seen.db) survives between runs.
+      - ./data:/app/data
