@@ -8,14 +8,19 @@ them, including Not Interested rows. A small local store (`data/seen.db`)
 also remembers every posting already handled, so a row you rename or delete
 in Notion is not added again.
 
+New postings are then scored 0-10 by Claude against a plain-English profile
+in `config.toml`. Good fits go into Notion with Fit Score, Discipline and Fit
+Reason; poor fits are recorded locally and never scored again.
+
 ## Layout
 
     jobtracker/
-      __main__.py         entry point: fetch -> filter -> seen store -> Notion
+      __main__.py         fetch -> filter -> seen store -> AI score -> Notion
       config.py           loads and checks config.toml
       filters.py          location / keyword / link / age filters (all sources)
+      scoring.py          Claude fit scoring against the [scoring] profile
       notion.py           Notion API client, with pacing and retries
-      store.py            SQLite seen-postings store
+      store.py            SQLite seen-postings store (with scores)
       text.py             matching, URL and date helpers
       sources/
         __init__.py       Source interface + SOURCE_TYPES registry
@@ -29,21 +34,53 @@ in Notion is not added again.
 2. In Notion, open the Job Tracker database, then `...` -> Connections ->
    add the integration. Without this the API returns nothing.
 3. `cp .env.example .env` and fill in the token.
+4. For AI scoring: create an API key at platform.claude.com and add it to
+   `.env` as `ANTHROPIC_API_KEY`. Then add three columns to the Notion
+   database: **Fit Score** (Number), **Discipline** (Select) and
+   **Fit Reason** (Text). The run stops with a message if any are missing.
 
 ## Run
 
     docker compose build
     docker compose run --rm jobtracker
 
-Dry run, no Notion or seen-store writes and no token needed:
+Dry run, no Notion or seen-store writes and no Notion token needed:
 
-    docker compose run --rm jobtracker --dry-run
+    docker compose run --rm jobtracker --dry-run --no-score
+
+A dry run with scoring shows each posting's score and reason, best first,
+which is how to tune the profile. It does call the API, so cap it:
+
+    docker compose run --rm jobtracker --dry-run --limit 20
+
+`--limit N` also works on a real run, e.g. for a careful first run.
 
 Locally, without Docker:
 
     pip install -r requirements.txt -r requirements-dev.txt
-    python -m jobtracker --dry-run
+    python -m jobtracker --dry-run --no-score
     python -m pytest
+
+## AI scoring
+
+Configured under `[scoring]` in `config.toml`:
+
+- `profile`: what you're looking for, written like a recruiter brief. This
+  is the main thing to edit.
+- `min_score`: postings below this (default 6) are not added to Notion.
+- `model` / `effort`: `claude-opus-5-5` at `low` by default. Each posting is
+  scored once, so the cost is mostly the first run (a couple of hundred
+  postings) and then a handful a day. `claude-haiku-5-5` is much cheaper and
+  a weaker judge.
+- `disciplines`: the options for the Discipline column.
+
+The title keywords still decide what gets scored, so they can be broader
+than before: the profile decides what is kept. If the API is down or rate
+limited, postings that passed the keywords are added without a score.
+Rejected postings are in `data/seen.db` (`status = 'rejected'`) with their
+score and reason, if you want to check what is being filtered out:
+
+    sqlite3 data/seen.db "select score, title, studio, reason from seen where status='rejected' order by score desc"
 
 ## Daily schedule (Pi crontab)
 
@@ -59,6 +96,17 @@ run with a message naming the key.
 
 Only a code change (`jobtracker/`, `requirements.txt`) needs
 `docker compose build`.
+
+## Clearing out Not Interested rows
+
+    docker compose run --rm jobtracker --prune --dry-run   # list them
+    docker compose run --rm jobtracker --prune
+
+Records every row whose Interest is Not Interested in `data/seen.db`, then
+moves it to the Notion trash (restorable there for 30 days). Because the
+posting is in the seen store, the sync never adds it again. Rows with a
+Status set (Applied, Interviewing...) are always kept. Run it on the machine
+that does the daily sync, so it writes to that machine's `data/seen.db`.
 
 ## Adding a source
 

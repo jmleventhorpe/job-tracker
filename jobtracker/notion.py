@@ -17,7 +17,9 @@ MIN_INTERVAL = 0.35  # stay under Notion's ~3 requests/second limit
 
 
 def _select_name(prop: dict | None) -> str:
-    sel = (prop or {}).get("select")
+    """Option name of a select or status property, '' if unset."""
+    prop = prop or {}
+    sel = prop.get("select") or prop.get("status")
     return (sel or {}).get("name", "") if sel else ""
 
 
@@ -73,6 +75,25 @@ class Notion:
             return resp.json()
         raise AssertionError("unreachable")
 
+    def check_columns(self, needed: dict[str, str]) -> None:
+        """Stop early, naming what to add, if the database lacks a column.
+
+        `needed` maps a key in self.props to the Notion property type."""
+        data = self._request("GET", f"/databases/{self.database_id}", "schema read")
+        have = {name: prop.get("type") for name, prop in data["properties"].items()}
+        problems = []
+        for key, kind in needed.items():
+            name = self.props[key]
+            if name not in have:
+                problems.append(f"add a '{name}' column of type {kind}")
+            elif have[name] != kind:
+                problems.append(f"'{name}' should be type {kind}, not {have[name]}")
+        if problems:
+            raise Fatal(
+                "Notion Job Tracker database needs changes: " + "; ".join(problems)
+                + ". Or rename them under [notion.properties] in config.toml."
+            )
+
     def existing_pages(self) -> dict[tuple[str, str], dict]:
         """Map (url, role) -> {'id', 'experience', 'work_mode'} for every row,
         including Not Interested ones."""
@@ -97,6 +118,39 @@ class Notion:
                 return pages
             payload["start_cursor"] = data["next_cursor"]
 
+    def pages_with_select(self, key: str, value: str) -> list[dict]:
+        """Every page whose select property `key` equals `value`, as
+        {'id', 'role', 'url', 'studio', 'source', 'status'}."""
+        p = self.props
+        found: list[dict] = []
+        payload: dict = {
+            "page_size": 100,
+            "filter": {"property": p[key], "select": {"equals": value}},
+        }
+        while True:
+            data = self._request(
+                "POST", f"/databases/{self.database_id}/query", "query", json=payload
+            )
+            for page in data["results"]:
+                props = page["properties"]
+                title = (props.get(p["role"]) or {}).get("title") or []
+                studio = (props.get(p["studio"]) or {}).get("rich_text") or []
+                found.append({
+                    "id": page["id"],
+                    "role": "".join(t.get("plain_text", "") for t in title),
+                    "url": (props.get(p["url"]) or {}).get("url") or "",
+                    "studio": "".join(t.get("plain_text", "") for t in studio),
+                    "source": _select_name(props.get(p["source"])),
+                    "status": _select_name(props.get(p["status"])),
+                })
+            if not data.get("has_more"):
+                return found
+            payload["start_cursor"] = data["next_cursor"]
+
+    def trash(self, page_id: str) -> None:
+        """Move a page to Notion's trash (restorable from there for 30 days)."""
+        self._request("PATCH", f"/pages/{page_id}", "trash", json={"archived": True})
+
     def fill_blanks(self, page: dict, posting: Posting) -> bool:
         """Set Experience / Work Mode only where the Notion row is empty.
         Never touches anything else, so manual edits survive."""
@@ -112,7 +166,8 @@ class Notion:
                       json={"properties": props})
         return True
 
-    def create(self, posting: Posting) -> str:
+    def create(self, posting: Posting, score=None) -> str:
+        """Add a page. `score` is a scoring.Score or None."""
         p = self.props
         props: dict = {
             p["role"]: {"title": [{"text": {"content": posting.role[:2000]}}]},
@@ -129,6 +184,10 @@ class Notion:
             props[p["experience"]] = {"select": {"name": posting.experience}}
         if posting.work_mode:
             props[p["work_mode"]] = {"select": {"name": posting.work_mode}}
+        if score:
+            props[p["fit_score"]] = {"number": score.score}
+            props[p["discipline"]] = {"select": {"name": score.discipline}}
+            props[p["fit_reason"]] = _rich_text(score.reason)
 
         data = self._request(
             "POST", "/pages", "create",

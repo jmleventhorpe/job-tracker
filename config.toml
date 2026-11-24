@@ -37,8 +37,15 @@ title_keywords = [
     "lighting",
     "pipeline",
     "generalist",
-    "technical artist",
+    # "technical artist" left out: almost all are games tech art roles.
+    # Ones titled e.g. "Technical Artist, Rigging" still match "rigging".
     "technical director",
+    "character td",
+    "lookdev",
+    "look dev",
+    "look development",
+    "tools developer",
+    "tools td",
 ]
 
 # Dropped even if the title matched above. FX is a different discipline
@@ -71,6 +78,68 @@ remote_words = ["remote", "worldwide", "anywhere", "global"]
 # date are kept, since their age can't be judged. 0 = no limit.
 max_age_days = 90
 
+[scoring]
+# After the filters above, each NEW posting is scored 0-10 by Claude against
+# the profile below. The score, discipline and reason go into Notion. Each
+# posting is scored once (the seen store remembers it). Needs
+# ANTHROPIC_API_KEY in .env. Set enabled = false to use keywords only.
+enabled = true
+model = "claude-opus-5-5"   # "claude-haiku-5-5" is far cheaper, a weaker judge
+effort = "low"              # low | medium | high | xhigh | max
+# Postings scoring below this are recorded as seen but not added to Notion.
+min_score = 6
+max_workers = 4             # parallel scoring requests
+disciplines = ["Rigging", "Lighting", "Pipeline", "Technical Art", "Generalist", "Other"]
+
+# Write this like you'd brief a recruiter. Edit freely; it is the main way to
+# steer what gets through. The keywords above only decide what gets scored.
+profile = """
+Mid-to-senior technical artist with about 8 years in feature and series
+animation, across three disciplines: lighting/lookdev, character rigging and
+pipeline development. Strongest where art and code meet.
+
+Background:
+- Lighting and lookdev: shot and sequence lighting in Houdini Solaris (LOPs)
+  with Arnold; character lookdev; RenderMan, V-Ray, Substance, OCIO/ACES.
+  Lookdev roles count as Lighting.
+- Rigging: full-body, facial and cloth character rigs in Maya, mGear and
+  modular rigging systems, with Python/OpenMaya rigging tools.
+- Pipeline: about 3 years as a pipeline developer. Built a studio-wide
+  publish validation tool, asset/shot manager infrastructure, USD
+  integration, Maya/Houdini/Blender handoff and shot assembly automation,
+  PyQt tools. Python, C++, USD, ShotGrid, render farm (Royal Render,
+  Tractor), Docker, Linux.
+- DCCs: Maya, Houdini, Blender, Nuke, Unreal.
+
+Good fits (score high):
+- Lighting, lighting TD or lookdev artist roles, especially Solaris/USD
+- Rigging, character TD or creature TD roles
+- Pipeline TD, pipeline developer or tools developer roles in VFX,
+  animation or games production
+- 3D generalist roles at VFX, animation or games studios, especially ones
+  that lean on lighting, lookdev or rigging
+- Mid or senior level; junior roles only if otherwise a very strong match
+- Animation and VFX studios first; games studios are fine
+
+Not a fit (score low):
+- Technical artist roles: these are almost always real-time games tech art
+  (shaders, engine tools, performance). Only score one well if it is
+  clearly rigging, lighting/lookdev or pipeline work
+- FX / simulation / CFX / crowd roles, even when the title says TD
+- Pure software engineering or IT roles outside a production pipeline
+- Modelling, texturing-only, animation, compositing or 2D roles
+- HR, production management, recruiting and other non-artist roles
+
+Location and right to work: British citizen with full right to work in the
+UK, currently based outside the UK. First score the role on fit alone, then
+adjust for where it is (or where it can be done from, for remote roles):
+- United Kingdom, or remote open to the UK: +1 (maximum score is still 10)
+- Europe (EU, EEA, Switzerland, Ireland), Australia, New Zealand: no change
+- Canada: -1
+- United States, Mexico, South America, Asia: -2
+If a location is unclear, use the closest match from this list.
+"""
+
 [locations]
 # Matched against both the Country and the Province/State/Region columns,
 # because the sheet frequently swaps the two for UK rows. Cells are split on
@@ -89,7 +158,19 @@ allowed = [
     "poland", "czech republic", "czechia", "slovakia", "hungary",
     "romania", "bulgaria", "greece", "croatia", "slovenia", "serbia",
     "estonia", "latvia", "lithuania", "malta", "cyprus", "ukraine",
+    # Australia and New Zealand
+    "australia", "new zealand", "nz",
+    # Mexico (scored like the US)
+    "mexico", "méxico",
+    # South America
+    "brazil", "brasil", "argentina", "chile", "colombia", "peru", "uruguay",
+    "ecuador", "paraguay", "bolivia", "venezuela",
+    # Asia
+    "japan", "south korea", "korea", "china", "hong kong", "taiwan",
+    "singapore", "malaysia", "thailand", "vietnam", "philippines",
+    "indonesia", "india", "nepal", "sri lanka", "bangladesh", "pakistan",
 ]
+
 # Notion column names. Only needed if you rename a column in Notion;
 # these are the defaults.
 # [notion.properties]

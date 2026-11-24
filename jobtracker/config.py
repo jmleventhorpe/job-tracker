@@ -20,7 +20,17 @@ DEFAULT_NOTION_PROPERTIES = {
     "date_issued": "Date Issued",
     "experience": "Experience",
     "work_mode": "Work Mode",
+    # Written only when [scoring] is enabled.
+    "fit_score": "Fit Score",
+    "discipline": "Discipline",
+    "fit_reason": "Fit Reason",
+    # Read only by --prune.
+    "interest": "Interest",
+    "status": "Status",
 }
+
+# The Interest option that --prune records and moves to the trash.
+DEFAULT_NOT_INTERESTED = "Not Interested"
 
 DEFAULT_REMOTE_WORDS = ["remote", "worldwide", "anywhere", "global"]
 
@@ -36,12 +46,28 @@ class FilterConfig:
     max_age_days: int = 0
 
 
+EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"]
+
+
+@dataclass
+class ScoringConfig:
+    enabled: bool = False
+    model: str = "claude-opus-5-5"
+    effort: str = "low"
+    min_score: int = 6
+    max_workers: int = 4
+    disciplines: list[str] = field(default_factory=lambda: ["Other"])
+    profile: str = ""
+
+
 @dataclass
 class Config:
     sources: list[dict[str, Any]]
     filters: FilterConfig
     notion_properties: dict[str, str]
     db_path: str
+    scoring: ScoringConfig = field(default_factory=ScoringConfig)
+    not_interested: str = DEFAULT_NOT_INTERESTED
 
 
 class _Section:
@@ -111,7 +137,10 @@ def parse_config(raw: dict[str, Any]) -> Config:
     for key in DEFAULT_NOTION_PROPERTIES:
         props[key] = props_raw.get(key, str, props[key])
     props_raw.reject_unknown()
+    not_interested = notion.get("not_interested", str, DEFAULT_NOT_INTERESTED)
     notion.reject_unknown()
+
+    scoring = _parse_scoring(top.get("scoring", dict, {}))
 
     top.reject_unknown()
     return Config(
@@ -119,7 +148,35 @@ def parse_config(raw: dict[str, Any]) -> Config:
         filters=filters,
         notion_properties=props,
         db_path=db_path,
+        scoring=scoring,
+        not_interested=not_interested,
     )
+
+
+def _parse_scoring(raw: dict[str, Any]) -> ScoringConfig:
+    s = _Section(raw, "scoring")
+    d = ScoringConfig()
+    cfg = ScoringConfig(
+        enabled=s.get("enabled", bool, d.enabled),
+        model=s.get("model", str, d.model),
+        effort=s.get("effort", str, d.effort),
+        min_score=s.get("min_score", int, d.min_score),
+        max_workers=s.get("max_workers", int, d.max_workers),
+        disciplines=s.get("disciplines", list, d.disciplines),
+        profile=s.get("profile", str, d.profile),
+    )
+    s.reject_unknown()
+    if cfg.effort not in EFFORT_LEVELS:
+        raise Fatal(f"config: [scoring] effort must be one of {EFFORT_LEVELS}")
+    if not 0 <= cfg.min_score <= 10:
+        raise Fatal("config: [scoring] min_score must be between 0 and 10")
+    if not 1 <= cfg.max_workers <= 16:
+        raise Fatal("config: [scoring] max_workers must be between 1 and 16")
+    if not cfg.disciplines:
+        raise Fatal("config: [scoring] disciplines must not be empty")
+    if cfg.enabled and not cfg.profile.strip():
+        raise Fatal("config: [scoring] is enabled but profile is empty")
+    return cfg
 
 
 def load_config(path: str) -> Config:
