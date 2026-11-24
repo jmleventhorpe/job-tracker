@@ -68,6 +68,7 @@ class Config:
     db_path: str
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
     not_interested: str = DEFAULT_NOT_INTERESTED
+    auto_prune: bool = False
 
 
 class _Section:
@@ -138,6 +139,7 @@ def parse_config(raw: dict[str, Any]) -> Config:
         props[key] = props_raw.get(key, str, props[key])
     props_raw.reject_unknown()
     not_interested = notion.get("not_interested", str, DEFAULT_NOT_INTERESTED)
+    auto_prune = notion.get("auto_prune", bool, False)
     notion.reject_unknown()
 
     scoring = _parse_scoring(top.get("scoring", dict, {}))
@@ -150,6 +152,7 @@ def parse_config(raw: dict[str, Any]) -> Config:
         db_path=db_path,
         scoring=scoring,
         not_interested=not_interested,
+        auto_prune=auto_prune,
     )
 
 

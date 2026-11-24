@@ -83,3 +83,31 @@ def test_prune_dry_run_writes_nothing(tmp_path):
 def test_not_interested_value_is_configurable():
     cfg = parse_config({**BASE, "notion": {"not_interested": "Pass"}})
     assert cfg.not_interested == "Pass"
+
+
+def test_auto_prune_runs_before_sync(tmp_path, monkeypatch):
+    import argparse
+    cfg = parse_config({**BASE, "state": {"db_path": str(tmp_path / "seen.db")},
+                        "notion": {"auto_prune": True}})
+    order = []
+    monkeypatch.setenv("NOTION_TOKEN", "t")
+    monkeypatch.setenv("NOTION_DATABASE_ID", "db")
+    monkeypatch.setattr(app, "load_config", lambda _: cfg)
+    monkeypatch.setattr(app, "prune", lambda *a, **k: order.append("prune"))
+    monkeypatch.setattr(app, "collect", lambda _: order.append("collect") or [])
+    notion = mock.Mock()
+    notion.existing_pages.return_value = {}
+    monkeypatch.setattr(app, "Notion", lambda *_: notion)
+    args = argparse.Namespace(config="x", dry_run=False, no_score=True, limit=0,
+                              prune=False)
+    assert app.run(args) == 0
+    assert order == ["prune", "collect"]
+
+    order.clear()
+    args.dry_run = True
+    app.run(args)
+    assert order == ["collect"]  # a dry run never prunes
+
+
+def test_auto_prune_defaults_off():
+    assert parse_config(BASE).auto_prune is False

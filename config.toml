@@ -171,6 +171,13 @@ allowed = [
     "indonesia", "india", "nepal", "sri lanka", "bangladesh", "pakistan",
 ]
 
+[notion]
+# Each run, first record every row marked Not Interested in the seen store
+# (so it is never re-added) and move it to the Notion trash, where it can be
+# restored for 30 days. Rows with a Status set are always kept.
+auto_prune = true
+# not_interested = "Not Interested"   # the Interest option that means "remove"
+
 # Notion column names. Only needed if you rename a column in Notion;
 # these are the defaults.
 # [notion.properties]

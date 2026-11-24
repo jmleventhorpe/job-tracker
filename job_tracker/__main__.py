@@ -112,6 +112,10 @@ def run(args: argparse.Namespace) -> int:
                      args.dry_run)
     scorer = make_scorer(cfg, not args.no_score)
 
+    if cfg.auto_prune and not args.dry_run:
+        # Before the sync, so dismissed postings are already in the seen store.
+        prune(cfg, Notion(token, database_id, cfg.notion_properties), dry_run=False)
+
     postings = collect(cfg)
     # A dry run reads the store if there is one but never creates it.
     if args.dry_run and not os.path.exists(cfg.db_path):
